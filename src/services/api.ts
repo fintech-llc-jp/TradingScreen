@@ -1,4 +1,4 @@
-import { OrderBook, AuthResponse, LoginRequest } from '../types';
+import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution } from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -36,16 +36,38 @@ class ApiClient {
       headers.Authorization = `Bearer ${this.getToken()}`;
     }
 
+    console.log(`🔄 API Request: ${options.method || 'GET'} ${url}`);
+    console.log('Headers:', headers);
+    if (options.body) {
+      console.log('Request Body:', options.body);
+    }
+
     const response = await fetch(url, {
       ...options,
       headers,
     });
 
+    console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`❌ API Error Response: ${response.status} ${response.statusText}`);
+      console.error('Error Details:', errorText);
+      
+      // 401エラー（Unauthorized）の場合はトークン期限切れの可能性
+      if (response.status === 401) {
+        console.warn('🔐 トークンが無効または期限切れです。再ログインが必要です。');
+        this.clearToken();
+        // カスタムイベントを発火して再ログインを促す
+        window.dispatchEvent(new CustomEvent('token-expired'));
+      }
+      
+      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`✅ API Response: ${options.method || 'GET'} ${url}`, data);
+    return data;
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -63,6 +85,17 @@ class ApiClient {
 
   async getSimpleOrderBook(symbol: string): Promise<OrderBook> {
     return this.request<OrderBook>(`/market/board/${symbol}/simple`);
+  }
+
+  async placeOrder(order: OrderRequest): Promise<OrderResponse> {
+    return this.request<OrderResponse>('/orders/new', {
+      method: 'POST',
+      body: JSON.stringify(order),
+    });
+  }
+
+  async getExecutions(maxCount: number = 10): Promise<Execution[]> {
+    return this.request<Execution[]>(`/executions/poll?maxCount=${maxCount}`);
   }
 }
 

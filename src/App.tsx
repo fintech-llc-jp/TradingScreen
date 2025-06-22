@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import TradingScreen from './components/TradingScreen';
+import NewTradingScreen from './components/NewTradingScreen';
 import LoginForm from './components/LoginForm';
 import { apiClient } from './services/api';
 import './App.css';
+import './NewApp.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,6 +15,19 @@ function App() {
       setIsAuthenticated(true);
     }
     setIsLoading(false);
+    
+    // トークン期限切れイベントリスナーを追加
+    const handleTokenExpired = () => {
+      console.warn('🔐 トークンが期限切れになりました。再ログインしてください。');
+      setIsAuthenticated(false);
+      alert('セッションが期限切れになりました。再ログインしてください。');
+    };
+    
+    window.addEventListener('token-expired', handleTokenExpired);
+    
+    return () => {
+      window.removeEventListener('token-expired', handleTokenExpired);
+    };
   }, []);
 
   const handleLoginSuccess = () => {
@@ -33,7 +47,7 @@ function App() {
   return (
     <div className="App">
       {isAuthenticated ? (
-        <TradingScreen />
+        <NewTradingScreen />
       ) : (
         <LoginForm onLoginSuccess={handleLoginSuccess} />
       )}
