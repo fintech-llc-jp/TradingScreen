@@ -48,18 +48,30 @@ export interface OrderResponse {
 
 export interface Execution {
   execID: string;
-  orderId: string;
+  orderId?: string;
   clOrdID: string;
   symbol: string;
   side: 'BUY' | 'SELL';
   lastQty: number;
   lastPx: number;
-  leavesQty: number;
-  cumQty: number;
-  avgPx: number;
-  ordStatus: string;
-  execType: string;
-  transactTime: string;
+  leavesQty?: number;
+  cumQty?: number;
+  avgPx?: number;
+  ordStatus?: string;
+  execStatus?: string;
+  execType?: string;
+  transactTime?: string;
+  counterPartyUsername?: string;
+  createdAt?: string;
+}
+
+export interface ExecutionHistoryResponse {
+  username: string;
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+  executions: Execution[];
 }
 
 export interface Trade {

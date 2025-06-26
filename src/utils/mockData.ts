@@ -41,21 +41,23 @@ export const getMockOrderBook = (symbol: string): OrderBook => {
   };
 };
 
-export const getMockExecutions = (): Execution[] => {
+export const getMockExecutions = (symbol?: string): Execution[] => {
   const now = new Date();
+  const targetSymbol = symbol || 'G_FX_BTCJPY';
+  
   return [
     {
       execID: 'exec1',
       orderId: 'order1',
       clOrdID: 'client1',
-      symbol: 'G_FX_BTCJPY',
+      symbol: targetSymbol,
       side: 'BUY',
-      lastQty: 10000,
+      lastQty: 0.01,
       lastPx: 14980000,
       leavesQty: 0,
-      cumQty: 10000,
+      cumQty: 0.01,
       avgPx: 14980000,
-      ordStatus: 'FILLED',
+      execStatus: 'FILLED',
       execType: 'TRADE',
       transactTime: new Date(now.getTime() - 60000).toISOString(),
     },
@@ -63,14 +65,14 @@ export const getMockExecutions = (): Execution[] => {
       execID: 'exec2',
       orderId: 'order2',
       clOrdID: 'client2',
-      symbol: 'G_FX_BTCJPY',
+      symbol: targetSymbol,
       side: 'SELL',
-      lastQty: 5000,
+      lastQty: 0.005,
       lastPx: 14979000,
       leavesQty: 0,
-      cumQty: 5000,
+      cumQty: 0.005,
       avgPx: 14979000,
-      ordStatus: 'FILLED',
+      execStatus: 'FILLED',
       execType: 'TRADE',
       transactTime: new Date(now.getTime() - 120000).toISOString(),
     },

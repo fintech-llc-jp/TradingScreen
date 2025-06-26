@@ -1,4 +1,4 @@
-import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution } from '../types';
+import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse } from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -94,8 +94,18 @@ class ApiClient {
     });
   }
 
-  async getExecutions(maxCount: number = 10): Promise<Execution[]> {
-    return this.request<Execution[]>(`/executions/poll?maxCount=${maxCount}`);
+  async getExecutions(page: number = 0, size: number = 10, symbol?: string): Promise<Execution[]> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+    
+    if (symbol) {
+      params.append('symbol', symbol);
+    }
+    
+    const response = await this.request<ExecutionHistoryResponse>(`/executions/history?${params}`);
+    return response.executions;
   }
 }
 

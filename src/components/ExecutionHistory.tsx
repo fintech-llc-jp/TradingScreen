@@ -11,15 +11,19 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
   executions,
   loading,
 }) => {
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('ja-JP', {
+  const formatTime = (timestamp?: string, createdAt?: string) => {
+    const timeStr = timestamp || createdAt;
+    if (!timeStr) return '---';
+    
+    return new Date(timeStr).toLocaleTimeString('ja-JP', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (ordStatus?: string, execStatus?: string) => {
+    const status = execStatus || ordStatus || '';
     switch (status) {
       case 'FILLED':
         return 'status-filled';
@@ -36,7 +40,8 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (ordStatus?: string, execStatus?: string) => {
+    const status = execStatus || ordStatus || '';
     switch (status) {
       case 'FILLED':
         return '約定';
@@ -49,23 +54,25 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
       case 'REJECTED':
         return '拒否';
       default:
-        return status;
+        return status || '不明';
     }
   };
+
+  console.log('📊 ExecutionHistory状態:', { loading, executionsCount: executions.length });
 
   return (
     <div className="execution-history">
       <h3 className="history-title">約定履歴</h3>
       
-      {loading && (
-        <div className="history-loading">読み込み中...</div>
+      {loading && executions.length === 0 && (
+        <div className="history-loading">約定履歴を読み込み中...</div>
       )}
       
       {!loading && executions.length === 0 && (
         <div className="no-executions">約定履歴がありません</div>
       )}
       
-      {!loading && executions.length > 0 && (
+      {executions.length > 0 && (
         <div className="execution-table">
           <div className="table-header">
             <div className="col-time">時刻</div>
@@ -80,7 +87,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
             {executions.map((execution) => (
               <div key={execution.execID} className="execution-row">
                 <div className="col-time">
-                  {formatTime(execution.transactTime)}
+                  {formatTime(execution.transactTime, execution.createdAt)}
                 </div>
                 <div className="col-symbol">
                   {execution.symbol}
@@ -94,8 +101,8 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
                 <div className="col-price">
                   {formatPrice(execution.lastPx)}
                 </div>
-                <div className={`col-status ${getStatusColor(execution.ordStatus)}`}>
-                  {getStatusText(execution.ordStatus)}
+                <div className={`col-status ${getStatusColor(execution.ordStatus, execution.execStatus)}`}>
+                  {getStatusText(execution.ordStatus, execution.execStatus)}
                 </div>
               </div>
             ))}

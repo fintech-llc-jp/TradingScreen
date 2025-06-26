@@ -19,6 +19,9 @@ const NewTradingScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [executionsLoading, setExecutionsLoading] = useState(false);
   const [useMockData, setUseMockData] = useState(false);
+  
+  // 商品別約定履歴キャッシュ
+  const [executionsCache, setExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
 
   // 仮の市場データ（実際のAPIから取得する場合は別途実装）
   const [lastPrice] = useState(14981474);
@@ -49,25 +52,49 @@ const NewTradingScreen: React.FC = () => {
   }, [selectedSymbol, useMockData]);
 
   const fetchExecutions = useCallback(async () => {
+    console.log(`🔄 fetchExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
+    setExecutionsLoading(true);
+    
     try {
-      setExecutionsLoading(true);
+      let newData: Execution[];
+      
       if (useMockData) {
         // モックデータを使用
-        const mockData = getMockExecutions();
-        setExecutions(mockData);
+        console.log(`📋 モックデータ生成中 (${selectedSymbol})`);
+        newData = getMockExecutions(selectedSymbol);
+        console.log(`✅ モックデータ生成完了:`, newData);
       } else {
         // 実際のAPIを呼び出し
-        const data = await apiClient.getExecutions(10);
-        setExecutions(data);
+        console.log(`📋 API呼び出し開始: /api/executions/history?page=0&size=10&symbol=${selectedSymbol}`);
+        newData = await apiClient.getExecutions(0, 10, selectedSymbol);
+        console.log(`✅ API呼び出し成功 (${newData.length}件):`, newData);
       }
+      
+      console.log(`💾 約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
+      setExecutions(newData);
+      
+      // キャッシュも更新
+      setExecutionsCache(prev => ({
+        ...prev,
+        [selectedSymbol]: newData
+      }));
+      
     } catch (err) {
-      console.error('約定履歴の取得に失敗、モックデータを使用:', err);
-      const mockData = getMockExecutions();
+      console.error(`❌ 約定履歴取得エラー (${selectedSymbol}):`, err);
+      const mockData = getMockExecutions(selectedSymbol);
+      console.log(`🔄 モックデータにフォールバック:`, mockData);
       setExecutions(mockData);
+      
+      // エラー時もキャッシュ更新
+      setExecutionsCache(prev => ({
+        ...prev,
+        [selectedSymbol]: mockData
+      }));
     } finally {
+      console.log(`🏁 fetchExecutions完了: ${selectedSymbol}`);
       setExecutionsLoading(false);
     }
-  }, [useMockData]);
+  }, [useMockData, selectedSymbol]);
 
   const handlePlaceOrder = async (order: OrderRequest) => {
     try {
@@ -96,7 +123,11 @@ const NewTradingScreen: React.FC = () => {
         alert(`モック注文が約定されました: ${order.side} ${(order.quantity/1000).toFixed(3)} BTC @ ${order.price.toLocaleString()}`);
       } else {
         await apiClient.placeOrder(order);
-        setTimeout(fetchExecutions, 500);
+        console.log('💰 注文成功、約定履歴を500ms後に更新します');
+        setTimeout(() => {
+          console.log('🔄 約定履歴を手動更新中...');
+          fetchExecutions();
+        }, 500);
         alert('注文が正常に発注されました');
       }
     } catch (error) {
@@ -131,10 +162,24 @@ const NewTradingScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchOrderBook]);
 
+  // 商品切り替え時の処理
   useEffect(() => {
+    const cachedData = executionsCache[selectedSymbol];
+    if (cachedData && cachedData.length > 0) {
+      console.log(`💾 キャッシュから約定履歴を表示: ${selectedSymbol}`);
+      setExecutions(cachedData);
+    }
+  }, [selectedSymbol, executionsCache]);
+
+  // 約定履歴の定期取得
+  useEffect(() => {
+    console.log('🔄 約定履歴の定期取得を開始');
     fetchExecutions();
-    const interval = setInterval(fetchExecutions, 3000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchExecutions, 5000); // 5秒に延長
+    return () => {
+      console.log('🛑 約定履歴の定期取得を停止');
+      clearInterval(interval);
+    };
   }, [fetchExecutions]);
 
   const bestBid = orderBook?.bids.length ? orderBook.bids[0].price : undefined;

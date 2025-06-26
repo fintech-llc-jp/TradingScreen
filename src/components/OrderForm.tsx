@@ -40,14 +40,19 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
     setLoading(true);
     try {
-      await onPlaceOrder({
+      const orderData = {
         symbol,
         price: ordType === 'MARKET' ? (side === 'BUY' ? bestAsk || 0 : bestBid || 0) : numPrice,
-        quantity: Math.round(numQuantity * 1000), // BTCを内部単位（1000倍）に変換
+        quantity: numQuantity, // 0.01 BTC をそのまま送信
         side,
         ordType,
         tif,
-      });
+      };
+      
+      console.log('📝 注文データ:', orderData);
+      console.log(`💡 入力: ${numQuantity} BTC → API送信: ${orderData.quantity} BTC`);
+      
+      await onPlaceOrder(orderData);
       
       if (ordType === 'LIMIT') {
         setPrice('');
