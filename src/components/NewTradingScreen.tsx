@@ -15,16 +15,18 @@ const NewTradingScreen: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState<Symbol>('G_FX_BTCJPY');
   const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
   const [executions, setExecutions] = useState<Execution[]>([]);
+  const [allExecutions, setAllExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [executionsLoading, setExecutionsLoading] = useState(false);
+  const [allExecutionsLoading, setAllExecutionsLoading] = useState(false);
   const [useMockData, setUseMockData] = useState(false);
   
   // 商品別約定履歴キャッシュ
   const [executionsCache, setExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
+  const [allExecutionsCache, setAllExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
 
   // 仮の市場データ（実際のAPIから取得する場合は別途実装）
-  const [lastPrice] = useState(14981474);
   const [volume24h] = useState(617.5708);
 
   const fetchOrderBook = useCallback(async () => {
@@ -93,6 +95,51 @@ const NewTradingScreen: React.FC = () => {
     } finally {
       console.log(`🏁 fetchExecutions完了: ${selectedSymbol}`);
       setExecutionsLoading(false);
+    }
+  }, [useMockData, selectedSymbol]);
+
+  const fetchAllExecutions = useCallback(async () => {
+    console.log(`🔄 fetchAllExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
+    setAllExecutionsLoading(true);
+    
+    try {
+      let newData: Execution[];
+      
+      if (useMockData) {
+        // モックデータを使用
+        console.log(`📋 全体約定モックデータ生成中 (${selectedSymbol})`);
+        newData = getMockExecutions(selectedSymbol);
+        console.log(`✅ 全体約定モックデータ生成完了:`, newData);
+      } else {
+        // 実際のAPIを呼び出し
+        console.log(`📋 全体約定API呼び出し開始: /api/executions/all?page=0&size=10&symbol=${selectedSymbol}`);
+        newData = await apiClient.getAllExecutions(0, 10, selectedSymbol);
+        console.log(`✅ 全体約定API呼び出し成功 (${newData.length}件):`, newData);
+      }
+      
+      console.log(`💾 全体約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
+      setAllExecutions(newData);
+      
+      // キャッシュも更新
+      setAllExecutionsCache(prev => ({
+        ...prev,
+        [selectedSymbol]: newData
+      }));
+      
+    } catch (err) {
+      console.error(`❌ 全体約定履歴取得エラー (${selectedSymbol}):`, err);
+      const mockData = getMockExecutions(selectedSymbol);
+      console.log(`🔄 全体約定モックデータにフォールバック:`, mockData);
+      setAllExecutions(mockData);
+      
+      // エラー時もキャッシュ更新
+      setAllExecutionsCache(prev => ({
+        ...prev,
+        [selectedSymbol]: mockData
+      }));
+    } finally {
+      console.log(`🏁 fetchAllExecutions完了: ${selectedSymbol}`);
+      setAllExecutionsLoading(false);
     }
   }, [useMockData, selectedSymbol]);
 
@@ -169,18 +216,35 @@ const NewTradingScreen: React.FC = () => {
       console.log(`💾 キャッシュから約定履歴を表示: ${selectedSymbol}`);
       setExecutions(cachedData);
     }
-  }, [selectedSymbol, executionsCache]);
+    
+    const allCachedData = allExecutionsCache[selectedSymbol];
+    if (allCachedData && allCachedData.length > 0) {
+      console.log(`💾 キャッシュから全体約定履歴を表示: ${selectedSymbol}`);
+      setAllExecutions(allCachedData);
+    }
+  }, [selectedSymbol, executionsCache, allExecutionsCache]);
 
   // 約定履歴の定期取得
   useEffect(() => {
     console.log('🔄 約定履歴の定期取得を開始');
     fetchExecutions();
-    const interval = setInterval(fetchExecutions, 5000); // 5秒に延長
+    fetchAllExecutions();
+    const interval = setInterval(() => {
+      fetchExecutions();
+      fetchAllExecutions();
+    }, 5000); // 5秒に延長
     return () => {
       console.log('🛑 約定履歴の定期取得を停止');
       clearInterval(interval);
     };
-  }, [fetchExecutions]);
+  }, [fetchExecutions, fetchAllExecutions]);
+
+  const handleTabChange = useCallback((tab: 'my' | 'all') => {
+    console.log(`📱 タブ切り替え: ${tab}`);
+    if (tab === 'all' && allExecutions.length === 0) {
+      fetchAllExecutions();
+    }
+  }, [allExecutions.length, fetchAllExecutions]);
 
   const bestBid = orderBook?.bids.length ? orderBook.bids[0].price : undefined;
   const bestAsk = orderBook?.asks.length ? orderBook.asks[0].price : undefined;
@@ -215,7 +279,6 @@ const NewTradingScreen: React.FC = () => {
             orderBook={orderBook}
             loading={loading}
             error={error}
-            lastPrice={lastPrice}
             volume24h={volume24h}
           />
         </div>
@@ -230,7 +293,10 @@ const NewTradingScreen: React.FC = () => {
           
           <ExecutionHistory
             executions={executions}
+            allExecutions={allExecutions}
             loading={executionsLoading}
+            allLoading={allExecutionsLoading}
+            onTabChange={handleTabChange}
           />
         </div>
       </div>

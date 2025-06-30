@@ -1,16 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Execution } from '../types';
 import { formatPrice, formatQuantity } from '../utils/formatters';
 
 interface ExecutionHistoryProps {
   executions: Execution[];
+  allExecutions: Execution[];
   loading: boolean;
+  allLoading: boolean;
+  onTabChange: (tab: 'my' | 'all') => void;
 }
 
 const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
   executions,
+  allExecutions,
   loading,
+  allLoading,
+  onTabChange,
 }) => {
+  const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
+
+  const handleTabChange = (tab: 'my' | 'all') => {
+    setActiveTab(tab);
+    onTabChange(tab);
+  };
+
+  const currentExecutions = activeTab === 'my' ? executions : allExecutions;
+  const currentLoading = activeTab === 'my' ? loading : allLoading;
   const formatTime = (timestamp?: string, createdAt?: string) => {
     const timeStr = timestamp || createdAt;
     if (!timeStr) return '---';
@@ -64,15 +79,30 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
     <div className="execution-history">
       <h3 className="history-title">約定履歴</h3>
       
-      {loading && executions.length === 0 && (
+      <div className="execution-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'my' ? 'active' : ''}`}
+          onClick={() => handleTabChange('my')}
+        >
+          自分の約定
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'all' ? 'active' : ''}`}
+          onClick={() => handleTabChange('all')}
+        >
+          全体の約定
+        </button>
+      </div>
+      
+      {currentLoading && currentExecutions.length === 0 && (
         <div className="history-loading">約定履歴を読み込み中...</div>
       )}
       
-      {!loading && executions.length === 0 && (
+      {!currentLoading && currentExecutions.length === 0 && (
         <div className="no-executions">約定履歴がありません</div>
       )}
       
-      {executions.length > 0 && (
+      {currentExecutions.length > 0 && (
         <div className="execution-table">
           <div className="table-header">
             <div className="col-time">時刻</div>
@@ -84,7 +114,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
           </div>
           
           <div className="table-body">
-            {executions.map((execution) => (
+            {currentExecutions.map((execution) => (
               <div key={execution.execID} className="execution-row">
                 <div className="col-time">
                   {formatTime(execution.transactTime, execution.createdAt)}

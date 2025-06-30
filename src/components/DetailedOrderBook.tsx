@@ -60,8 +60,8 @@ const DetailedOrderBook: React.FC<DetailedOrderBookProps> = ({
 
       <div className="price-header">
         <span className="header-label">Ask</span>
-        <span className="current-price">{lastPrice ? formatPrice(lastPrice) : '---'}</span>
-        <span className="header-label right">Btd</span>
+        <span className="current-price"></span>
+        <span className="header-label right">Bid</span>
       </div>
 
       <div className="order-book-content">
@@ -83,8 +83,6 @@ const DetailedOrderBook: React.FC<DetailedOrderBookProps> = ({
 
         <div className="spread-info-section">
           <div className="spread-container">
-            <span className="spread-label">最終取引価格:</span>
-            <span className="last-price">{lastPrice ? formatPrice(lastPrice) : '---'}</span>
             <div className="spread-details">
               <span className="spread-label">スプレッド:</span>
               <span className="spread-value">

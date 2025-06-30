@@ -107,6 +107,20 @@ class ApiClient {
     const response = await this.request<ExecutionHistoryResponse>(`/executions/history?${params}`);
     return response.executions;
   }
+
+  async getAllExecutions(page: number = 0, size: number = 10, symbol?: string): Promise<Execution[]> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+    
+    if (symbol) {
+      params.append('symbol', symbol);
+    }
+    
+    const response = await this.request<ExecutionHistoryResponse>(`/executions/all?${params}`);
+    return response.executions;
+  }
 }
 
 export const apiClient = new ApiClient();

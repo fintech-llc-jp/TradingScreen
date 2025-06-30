@@ -590,6 +590,49 @@
   text-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
 }
 
+/* 約定履歴タブ */
+.execution-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a3441;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(42, 52, 65, 0.5);
+  border: none;
+  color: #a0a9b8;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tab-button:hover {
+  background: rgba(42, 52, 65, 0.8);
+  color: #ffffff;
+}
+
+.tab-button.active {
+  background: rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+  font-weight: 600;
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #00d4ff;
+}
+
 .execution-table {
   font-size: 0.85rem;
 }
