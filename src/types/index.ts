@@ -74,6 +74,15 @@ export interface ExecutionHistoryResponse {
   executions: Execution[];
 }
 
+export interface VolumeCalculationResponse {
+  symbol: string;
+  fromTime: string;
+  toTime: string;
+  totalVolume: number;
+  executionCount: number;
+  timeRangeDescription: string;
+}
+
 export interface Trade {
   id: string;
   symbol: string;

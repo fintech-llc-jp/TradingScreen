@@ -229,6 +229,13 @@
   font-family: 'Monaco', 'Consolas', monospace;
 }
 
+.volume-loading {
+  color: #a0a9b8;
+  font-family: inherit;
+  font-weight: normal;
+  font-style: italic;
+}
+
 .price-header {
   background: #1a2332;
   padding: 15px 20px;

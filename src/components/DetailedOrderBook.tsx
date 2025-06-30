@@ -6,16 +6,16 @@ interface DetailedOrderBookProps {
   orderBook: OrderBook | null;
   loading: boolean;
   error: string | null;
-  lastPrice?: number;
   volume24h?: number;
+  volumeLoading?: boolean;
 }
 
 const DetailedOrderBook: React.FC<DetailedOrderBookProps> = ({
   orderBook,
   loading,
   error,
-  lastPrice,
   volume24h,
+  volumeLoading,
 }) => {
   if (loading) {
     return <div className="detailed-loading">読み込み中...</div>;
@@ -54,7 +54,13 @@ const DetailedOrderBook: React.FC<DetailedOrderBookProps> = ({
         </div>
         <div className="volume-info">
           <span className="volume-label">24時間取引量:</span>
-          <span className="volume-value">{volume24h?.toFixed(4) || '0.0000'} BTC</span>
+          <span className="volume-value">
+            {volumeLoading ? (
+              <span className="volume-loading">読み込み中...</span>
+            ) : (
+              `${volume24h?.toFixed(4) || '0.0000'} BTC`
+            )}
+          </span>
         </div>
       </div>
 

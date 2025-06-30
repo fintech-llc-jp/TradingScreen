@@ -1,4 +1,4 @@
-import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse } from '../types';
+import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse, VolumeCalculationResponse } from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -120,6 +120,45 @@ class ApiClient {
     
     const response = await this.request<ExecutionHistoryResponse>(`/executions/all?${params}`);
     return response.executions;
+  }
+
+  async getVolumeCalculation(symbol: string, fromTime: string, toTime: string): Promise<VolumeCalculationResponse> {
+    const params = new URLSearchParams({
+      symbol: symbol,
+      fromTime: fromTime,
+      toTime: toTime
+    });
+    
+    return this.request<VolumeCalculationResponse>(`/executions/volume?${params}`);
+  }
+
+  async get24HourVolume(symbol: string): Promise<number> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    const toTime = now.toISOString().substring(0, 19);
+    const fromTime = yesterday.toISOString().substring(0, 19);
+    
+    console.log(`📊 Volume API call: ${symbol} from ${fromTime} to ${toTime} (UTC)`);
+    console.log(`📊 Current time: ${now.toISOString()}, Yesterday: ${yesterday.toISOString()}`);
+    
+    try {
+      const response = await this.getVolumeCalculation(symbol, fromTime, toTime);
+      console.log(`📊 Volume API response for ${symbol}:`, response);
+      console.log(`📊 Total volume: ${response.totalVolume}, Execution count: ${response.executionCount}`);
+      
+      // 警告: 取引量が0の場合
+      if (response.totalVolume === 0) {
+        console.warn(`⚠️ 取引量が0です - ${symbol}: 期間内に約定がない可能性があります`);
+        console.warn(`⚠️ 確認してください: 約定データの時刻が ${fromTime} から ${toTime} の範囲内にあるか?`);
+      }
+      
+      return response.totalVolume;
+    } catch (error) {
+      console.error(`❌ 24時間取引量取得エラー (${symbol}):`, error);
+      console.error(`❌ エラー詳細:`, error);
+      return 0;
+    }
   }
 }
 

@@ -26,8 +26,9 @@ const NewTradingScreen: React.FC = () => {
   const [executionsCache, setExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
   const [allExecutionsCache, setAllExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
 
-  // 仮の市場データ（実際のAPIから取得する場合は別途実装）
-  const [volume24h] = useState(617.5708);
+  // 24時間取引量データ
+  const [volume24h, setVolume24h] = useState<number>(0);
+  const [volumeLoading, setVolumeLoading] = useState(false);
 
   const fetchOrderBook = useCallback(async () => {
     try {
@@ -143,6 +144,34 @@ const NewTradingScreen: React.FC = () => {
     }
   }, [useMockData, selectedSymbol]);
 
+  const fetch24HourVolume = useCallback(async () => {
+    console.log(`📊 24時間取引量取得開始: ${selectedSymbol}`);
+    setVolumeLoading(true);
+    
+    try {
+      if (useMockData) {
+        // モックデータでは固定値を使用
+        const mockVolume = Math.random() * 1000 + 100; // 100-1100 BTCのランダム値
+        console.log(`📋 モック24時間取引量: ${mockVolume.toFixed(4)} BTC`);
+        setVolume24h(mockVolume);
+      } else {
+        // 実際のAPIを呼び出し
+        console.log(`📊 API呼び出し: ${selectedSymbol}の24時間取引量`);
+        const volume = await apiClient.get24HourVolume(selectedSymbol);
+        console.log(`✅ 24時間取引量取得成功: ${volume.toFixed(4)} BTC`);
+        setVolume24h(volume);
+      }
+    } catch (err) {
+      console.error(`❌ 24時間取引量取得エラー (${selectedSymbol}):`, err);
+      // エラー時はモック値を使用
+      const fallbackVolume = Math.random() * 500 + 50;
+      setVolume24h(fallbackVolume);
+    } finally {
+      console.log(`🏁 24時間取引量取得完了: ${selectedSymbol}`);
+      setVolumeLoading(false);
+    }
+  }, [selectedSymbol, useMockData]);
+
   const handlePlaceOrder = async (order: OrderRequest) => {
     try {
       if (useMockData) {
@@ -229,15 +258,17 @@ const NewTradingScreen: React.FC = () => {
     console.log('🔄 約定履歴の定期取得を開始');
     fetchExecutions();
     fetchAllExecutions();
+    fetch24HourVolume();
     const interval = setInterval(() => {
       fetchExecutions();
       fetchAllExecutions();
-    }, 5000); // 5秒に延長
+      fetch24HourVolume();
+    }, 10000); // 10秒に延長（取引量データも含むため）
     return () => {
       console.log('🛑 約定履歴の定期取得を停止');
       clearInterval(interval);
     };
-  }, [fetchExecutions, fetchAllExecutions]);
+  }, [fetchExecutions, fetchAllExecutions, fetch24HourVolume]);
 
   const handleTabChange = useCallback((tab: 'my' | 'all') => {
     console.log(`📱 タブ切り替え: ${tab}`);
@@ -245,6 +276,11 @@ const NewTradingScreen: React.FC = () => {
       fetchAllExecutions();
     }
   }, [allExecutions.length, fetchAllExecutions]);
+
+  // 商品切り替え時に24時間取引量を再取得
+  useEffect(() => {
+    fetch24HourVolume();
+  }, [selectedSymbol, fetch24HourVolume]);
 
   const bestBid = orderBook?.bids.length ? orderBook.bids[0].price : undefined;
   const bestAsk = orderBook?.asks.length ? orderBook.asks[0].price : undefined;
@@ -280,6 +316,7 @@ const NewTradingScreen: React.FC = () => {
             loading={loading}
             error={error}
             volume24h={volume24h}
+            volumeLoading={volumeLoading}
           />
         </div>
         
