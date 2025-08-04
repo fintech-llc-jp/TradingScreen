@@ -33,8 +33,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
       return;
     }
 
-    if (!numQuantity || numQuantity < 0.01) {
-      alert('数量は0.01以上で入力してください');
+    if (!numQuantity || numQuantity < 0.001) {
+      alert('数量は0.001以上で入力してください');
       return;
     }
 
@@ -149,9 +149,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
             type="number"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            placeholder="0.01以上で入力"
-            step="0.01"
-            min="0.01"
+            placeholder="0.001以上で入力"
+            step="0.001"
+            min="0.001"
             required
           />
         </div>

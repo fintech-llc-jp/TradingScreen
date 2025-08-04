@@ -7,6 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
+        //target: 'https://exch-sim-953974838707.asia-northeast1.run.app/',
         target: 'http://localhost:8080',
         changeOrigin: true
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Symbol, OrderBook, OrderRequest, Execution } from '../types';
 import { apiClient } from '../services/api';
 import { getMockOrderBook, getMockExecutions } from '../utils/mockData';
@@ -8,51 +8,98 @@ import OrderForm from './OrderForm';
 import ExecutionHistory from './ExecutionHistory';
 import ApiStatusChecker from './ApiStatusChecker';
 import ReLoginButton from './ReLoginButton';
+import MultiMarketBoard from './MultiMarketBoard';
 
 const SYMBOLS: Symbol[] = ['G_BTCJPY', 'G_FX_BTCJPY', 'B_BTCJPY', 'B_FX_BTCJPY'];
 
 const NewTradingScreen: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState<Symbol>('G_FX_BTCJPY');
-  const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
+  const [orderBooks, setOrderBooks] = useState<Record<Symbol, OrderBook | null>>({});
+  const [orderBooksLoading, setOrderBooksLoading] = useState<Record<Symbol, boolean>>({});
+  const [orderBooksInitialLoading, setOrderBooksInitialLoading] = useState<Record<Symbol, boolean>>({});
+  const [orderBooksErrors, setOrderBooksErrors] = useState<Record<Symbol, string | null>>({});
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [allExecutions, setAllExecutions] = useState<Execution[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [executionsLoading, setExecutionsLoading] = useState(false);
   const [allExecutionsLoading, setAllExecutionsLoading] = useState(false);
   const [useMockData, setUseMockData] = useState(false);
+  const [mockDataSymbols, setMockDataSymbols] = useState<Set<Symbol>>(new Set());
+  const [activeTab, setActiveTab] = useState<'single' | 'multi'>('single');
+  
+  // 初回ロード判定用のRef
+  const initialLoadedSymbols = useRef<Set<Symbol>>(new Set());
   
   // 商品別約定履歴キャッシュ
-  const [executionsCache, setExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
-  const [allExecutionsCache, setAllExecutionsCache] = useState<Record<Symbol, Execution[]>>({});
+  const [executionsCache, setExecutionsCache] = useState<Record<Symbol, Execution[]>>({} as Record<Symbol, Execution[]>);
+  const [allExecutionsCache, setAllExecutionsCache] = useState<Record<Symbol, Execution[]>>({} as Record<Symbol, Execution[]>);
 
   // 24時間取引量データ
   const [volume24h, setVolume24h] = useState<number>(0);
   const [volumeLoading, setVolumeLoading] = useState(false);
 
-  const fetchOrderBook = useCallback(async () => {
-    try {
-      setError(null);
-      if (useMockData) {
-        // モックデータを使用
-        const mockData = getMockOrderBook(selectedSymbol);
-        setOrderBook(mockData);
-        setLoading(false);
-      } else {
-        // 実際のAPIを呼び出し
-        const data = await apiClient.getOrderBook(selectedSymbol, 15);
-        setOrderBook(data);
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('API呼び出しエラー、モックデータに切り替えます:', err);
-      setUseMockData(true);
-      const mockData = getMockOrderBook(selectedSymbol);
-      setOrderBook(mockData);
-      setError('APIエラーのためモックデータを表示中');
-      setLoading(false);
+  const fetchOrderBook = useCallback(async (symbol: Symbol) => {
+    // 初回のみローディング状態を設定
+    const isInitialLoad = !initialLoadedSymbols.current.has(symbol);
+    if (isInitialLoad) {
+      setOrderBooksInitialLoading(prev => ({ ...prev, [symbol]: true }));
     }
-  }, [selectedSymbol, useMockData]);
+    setOrderBooksErrors(prev => ({ ...prev, [symbol]: null }));
+
+    try {
+      let data: OrderBook;
+      if (useMockData) {
+        data = getMockOrderBook(symbol);
+      } else {
+        data = await apiClient.getOrderBook(symbol, 15);
+      }
+      setOrderBooks(prev => ({ ...prev, [symbol]: data }));
+      
+      // 初回ロード完了をマーク
+      if (isInitialLoad) {
+        initialLoadedSymbols.current.add(symbol);
+      }
+      
+      // データが正常に取得できた場合はモック状態を解除
+      setMockDataSymbols(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(symbol);
+        if (newSet.size === 0) {
+          setUseMockData(false);
+        }
+        return newSet;
+      });
+    } catch (err) {
+      console.error(`OrderBook fetch error for ${symbol}:`, err);
+      const errorMessage = err instanceof Error ? err.message : '不明なエラー';
+      
+      setOrderBooksErrors(prev => ({ 
+        ...prev, 
+        [symbol]: `API Error: ${errorMessage}` 
+      }));
+      
+      // 初回ロード失敗時のみモックデータにフォールバック
+      if (isInitialLoad) {
+        console.log(`Using mock data fallback for ${symbol} due to initial load failure`);
+        const mockData = getMockOrderBook(symbol);
+        setOrderBooks(prev => ({ ...prev, [symbol]: mockData }));
+        setMockDataSymbols(prev => new Set([...prev, symbol]));
+        setUseMockData(true);
+        initialLoadedSymbols.current.add(symbol);
+      } else {
+        console.log(`Keeping existing data for ${symbol} despite API error`);
+      }
+    } finally {
+      if (isInitialLoad) {
+        setOrderBooksInitialLoading(prev => ({ ...prev, [symbol]: false }));
+      }
+    }
+  }, [useMockData]);
+
+  const fetchAllOrderBooks = useCallback(async () => {
+    // 並列実行に戻す（レートリミット対策は間隔調整で対応）
+    const promises = SYMBOLS.map(symbol => fetchOrderBook(symbol));
+    await Promise.allSettled(promises);
+  }, [fetchOrderBook]);
 
   const fetchExecutions = useCallback(async () => {
     console.log(`🔄 fetchExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
@@ -233,10 +280,10 @@ const NewTradingScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchOrderBook();
-    const interval = setInterval(fetchOrderBook, 1000);
+    fetchAllOrderBooks();
+    const interval = setInterval(fetchAllOrderBooks, 1000);
     return () => clearInterval(interval);
-  }, [fetchOrderBook]);
+  }, [fetchAllOrderBooks]);
 
   // 商品切り替え時の処理
   useEffect(() => {
@@ -263,7 +310,7 @@ const NewTradingScreen: React.FC = () => {
       fetchExecutions();
       fetchAllExecutions();
       fetch24HourVolume();
-    }, 10000); // 10秒に延長（取引量データも含むため）
+    }, 30000); // 30秒に変更（取引量データも含むため）
     return () => {
       console.log('🛑 約定履歴の定期取得を停止');
       clearInterval(interval);
@@ -282,61 +329,90 @@ const NewTradingScreen: React.FC = () => {
     fetch24HourVolume();
   }, [selectedSymbol, fetch24HourVolume]);
 
-  const bestBid = orderBook?.bids.length ? orderBook.bids[0].price : undefined;
-  const bestAsk = orderBook?.asks.length ? orderBook.asks[0].price : undefined;
+  const selectedOrderBook = orderBooks[selectedSymbol];
+  const bestBid = selectedOrderBook?.bids.length ? selectedOrderBook.bids[0].price : undefined;
+  const bestAsk = selectedOrderBook?.asks.length ? selectedOrderBook.asks[0].price : undefined;
 
   return (
     <div className="new-trading-screen">
-      <SymbolSelector
-        symbols={SYMBOLS}
-        selectedSymbol={selectedSymbol}
-        onSymbolChange={setSelectedSymbol}
-      />
-      
-      {useMockData && (
-        <div className="mock-data-notice">
-          ⚠️ APIエラーのためモックデータを表示中です
-          <div className="mock-controls">
-            <ReLoginButton onLoginSuccess={() => setUseMockData(false)} />
-            <ApiStatusChecker />
-            <button 
-              className="force-real-data-button"
-              onClick={() => setUseMockData(false)}
-            >
-              実データモードに戻す
-            </button>
-          </div>
-        </div>
-      )}
-      
-      <div className="trading-layout">
-        <div className="left-panel">
-          <DetailedOrderBook
-            orderBook={orderBook}
-            loading={loading}
-            error={error}
-            volume24h={volume24h}
-            volumeLoading={volumeLoading}
-          />
-        </div>
-        
-        <div className="right-panel">
-          <OrderForm
-            symbol={selectedSymbol}
-            onPlaceOrder={handlePlaceOrder}
-            bestBid={bestBid}
-            bestAsk={bestAsk}
+      <div className="main-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'single' ? 'active' : ''}`}
+          onClick={() => setActiveTab('single')}
+        >
+          個別マーケット
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'multi' ? 'active' : ''}`}
+          onClick={() => setActiveTab('multi')}
+        >
+          マーケット一覧
+        </button>
+      </div>
+
+      {activeTab === 'single' ? (
+        <>
+          <SymbolSelector
+            symbols={SYMBOLS}
+            selectedSymbol={selectedSymbol}
+            onSymbolChange={setSelectedSymbol}
           />
           
-          <ExecutionHistory
-            executions={executions}
-            allExecutions={allExecutions}
-            loading={executionsLoading}
-            allLoading={allExecutionsLoading}
-            onTabChange={handleTabChange}
-          />
-        </div>
-      </div>
+          {useMockData && (
+            <div className="mock-data-notice">
+              ⚠️ APIエラーのためモックデータを表示中です
+              <div className="mock-controls">
+                <ReLoginButton onLoginSuccess={() => setUseMockData(false)} />
+                <ApiStatusChecker />
+                <button 
+                  className="force-real-data-button"
+                  onClick={() => setUseMockData(false)}
+                >
+                  実データモードに戻す
+                </button>
+              </div>
+            </div>
+          )}
+          
+          <div className="trading-layout">
+            <div className="left-panel">
+              <DetailedOrderBook
+                orderBook={selectedOrderBook}
+                loading={orderBooksInitialLoading[selectedSymbol] || false}
+                error={orderBooksErrors[selectedSymbol] || null}
+                volume24h={volume24h}
+                volumeLoading={volumeLoading}
+              />
+            </div>
+            
+            <div className="right-panel">
+              <OrderForm
+                symbol={selectedSymbol}
+                onPlaceOrder={handlePlaceOrder}
+                bestBid={bestBid}
+                bestAsk={bestAsk}
+              />
+              
+              <ExecutionHistory
+                executions={executions}
+                allExecutions={allExecutions}
+                loading={executionsLoading}
+                allLoading={allExecutionsLoading}
+                onTabChange={handleTabChange}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <MultiMarketBoard 
+          symbols={SYMBOLS} 
+          onPlaceOrder={handlePlaceOrder}
+          orderBooks={orderBooks}
+          initialLoading={orderBooksInitialLoading}
+          errors={orderBooksErrors}
+          useMockData={useMockData}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse, VolumeCalculationResponse } from '../types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.PROD
+  ? 'https://exch-sim-service-953974838707.asia-northeast1.run.app/api'
+  : '/api';
 
 class ApiClient {
   private token: string | null = null;
