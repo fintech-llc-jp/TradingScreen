@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/api';
-import { AUTH_CONFIG } from '../config/auth';
 
-interface LoginFormProps {
-  onLoginSuccess: () => void;
-  onShowSignUp: () => void;
+interface SignUpFormProps {
+  onSignUpSuccess: () => void;
+  onShowLogin: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) => {
+const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess, onShowLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleManualLogin = async () => {
+  const handleSignUp = async () => {
     if (!username || !password) {
       setError('ユーザー名とパスワードを入力してください');
       return;
@@ -22,30 +21,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
     setError(null);
     
     try {
-      await apiClient.login({
-        username,
-        password
-      });
-      onLoginSuccess();
+      await apiClient.signUp({ username, password });
+      onSignUpSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAutoLogin = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      await apiClient.login({
-        username: AUTH_CONFIG.username,
-        password: AUTH_CONFIG.password
-      });
-      onLoginSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+      setError(err instanceof Error ? err.message : 'サインアップに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -54,8 +33,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
   return (
     <div className="login-container">
       <div className="login-form">
-        <h2>Trading Screen</h2>
-        <p>マーケットデータを表示するためにログインしてください</p>
+        <h2>アカウント登録</h2>
+        <p>新しいアカウントを作成します。</p>
         
         <div className="form-group">
           <label htmlFor="username">ユーザー名</label>
@@ -78,6 +57,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
             placeholder="パスワード"
           />
         </div>
+
+        <div className="warning-message">
+          <p><strong>重要:</strong> ユーザー名とパスワードは忘れないように安全な場所に保管してください。紛失した場合、復元することはできません。</p>
+        </div>
         
         {error && (
           <div className="error-message">
@@ -86,31 +69,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
         )}
         
         <button 
-          onClick={handleManualLogin}
+          onClick={handleSignUp}
           disabled={loading}
           className="login-button"
         >
-          {loading ? 'ログイン中...' : 'ログイン'}
+          {loading ? '登録中...' : '登録'}
         </button>
 
-        <div className="auto-login-section">
-          <p>または</p>
+        <div className="login-link">
+          <p>すでにアカウントをお持ちの方は</p>
           <button 
-            onClick={handleAutoLogin}
-            disabled={loading}
-            className="auto-login-button"
-          >
-            {loading ? 'ログイン中...' : 'デモアカウントでログイン'}
-          </button>
-        </div>
-
-        <div className="signup-link">
-          <p>アカウントをお持ちでない方は</p>
-          <button 
-            onClick={onShowSignUp}
+            onClick={onShowLogin}
             className="link-button"
           >
-            新規登録はこちら
+            ログインはこちら
           </button>
         </div>
       </div>
@@ -118,4 +90,4 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
   );
 };
 
-export default LoginForm;
+export default SignUpForm;

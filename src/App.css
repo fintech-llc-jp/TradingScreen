@@ -323,13 +323,117 @@ body {
 }
 
 .error-message {
-  background: rgba(255, 71, 87, 0.1);
-  border: 1px solid rgba(255, 71, 87, 0.3);
-  color: #ff4757;
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
   padding: 12px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin: 16px 0;
   font-size: 0.9rem;
+}
+
+.link-button {
+  background: transparent;
+  border: none;
+  color: #00d4ff;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.link-button:hover {
+  background: rgba(0, 212, 255, 0.1);
+  color: #00ffff;
+}
+
+.signup-link, .login-link {
+  margin-top: 20px;
+  text-align: center;
+  padding: 16px;
+  border-top: 1px solid #2a3441;
+}
+
+.signup-link p, .login-link p {
+  margin-bottom: 8px;
+  color: #a0a0a0;
+  font-size: 0.9rem;
+}
+
+.auto-login-section {
+  margin-top: 20px;
+  text-align: center;
+  padding: 16px;
+  border-top: 1px solid #2a3441;
+}
+
+.auto-login-section p {
+  margin-bottom: 12px;
+  color: #a0a0a0;
+  font-size: 0.9rem;
+}
+
+.auto-login-button {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #00d4ff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.auto-login-button:hover:not(:disabled) {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.5);
+  color: #00ffff;
+}
+
+.auto-login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: rgba(26, 35, 50, 0.9);
+  border-bottom: 1px solid #2a3441;
+  backdrop-filter: blur(10px);
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #00d4ff;
+  margin: 0;
+}
+
+.header button {
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.header button:hover:not(:disabled) {
+  background: rgba(255, 59, 48, 0.2);
+  border-color: rgba(255, 59, 48, 0.5);
+  color: #ff6b6b;
+}
+
+.header button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading-screen {

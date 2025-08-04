@@ -25,6 +25,7 @@ const NewTradingScreen: React.FC = () => {
   const [useMockData, setUseMockData] = useState(false);
   const [mockDataSymbols, setMockDataSymbols] = useState<Set<Symbol>>(new Set());
   const [activeTab, setActiveTab] = useState<'single' | 'multi'>('single');
+  const [logoutLoading, setLogoutLoading] = useState(false);
   
   // 初回ロード判定用のRef
   const initialLoadedSymbols = useRef<Set<Symbol>>(new Set());
@@ -36,6 +37,20 @@ const NewTradingScreen: React.FC = () => {
   // 24時間取引量データ
   const [volume24h, setVolume24h] = useState<number>(0);
   const [volumeLoading, setVolumeLoading] = useState(false);
+
+  const handleLogout = () => {
+    if (window.confirm('ログアウトしますか？')) {
+      setLogoutLoading(true);
+      try {
+        apiClient.logout();
+        console.log('ログアウトが完了しました');
+      } catch (error) {
+        console.error('ログアウトエラー:', error);
+      } finally {
+        setLogoutLoading(false);
+      }
+    }
+  };
 
   const fetchOrderBook = useCallback(async (symbol: Symbol) => {
     // 初回のみローディング状態を設定
@@ -335,6 +350,12 @@ const NewTradingScreen: React.FC = () => {
 
   return (
     <div className="new-trading-screen">
+      <div className="header">
+        <h1>New Trading Screen</h1>
+        <button onClick={handleLogout} disabled={logoutLoading}>
+          {logoutLoading ? 'ログアウト中...' : 'ログアウト'}
+        </button>
+      </div>
       <div className="main-tabs">
         <button 
           className={`tab-button ${activeTab === 'single' ? 'active' : ''}`}

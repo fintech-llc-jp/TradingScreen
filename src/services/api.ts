@@ -81,6 +81,23 @@ class ApiClient {
     return response;
   }
 
+  async signUp(credentials: LoginRequest): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    // サインアップ成功後、自動でログイン状態にする
+    this.setToken(response.token);
+    return response;
+  }
+
+  async logout(): Promise<void> {
+    // ローカルでトークンをクリア
+    this.clearToken();
+    // カスタムイベントを発火してログアウトを通知
+    window.dispatchEvent(new CustomEvent('user-logout'));
+  }
+
   async getOrderBook(symbol: string, depth: number = 10): Promise<OrderBook> {
     return this.request<OrderBook>(`/market/board/${symbol}?depth=${depth}`);
   }
