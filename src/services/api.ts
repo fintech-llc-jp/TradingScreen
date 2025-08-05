@@ -1,7 +1,11 @@
-import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse, VolumeCalculationResponse } from '../types';
+import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse, VolumeCalculationResponse, PortfolioSummary, Position, TradeHistoryItem, NewsSummaryResponse, NewsTranslationResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.PROD
   ? 'https://exch-sim-service-953974838707.asia-northeast1.run.app/api'
+  : '/api';
+
+const NEWS_API_BASE_URL = import.meta.env.PROD
+  ? (import.meta.env.VITE_NEWS_API_URL || 'https://news-server-120035357891.asia-northeast1.run.app/api')
   : '/api';
 
 class ApiClient {
@@ -26,9 +30,10 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    baseUrl: string = API_BASE_URL
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
@@ -69,6 +74,39 @@ class ApiClient {
 
     const data = await response.json();
     console.log(`✅ API Response: ${options.method || 'GET'} ${url}`, data);
+    return data;
+  }
+
+  private async newsRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${NEWS_API_BASE_URL}${endpoint}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    // ニュースAPIには認証ヘッダーを追加しない
+    console.log(`🔄 News API Request: ${options.method || 'GET'} ${url}`);
+    console.log('Headers:', headers);
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    console.log(`📡 News API Response Status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ News API Error Response: ${response.status} ${response.statusText}`);
+      console.error('Error Details:', errorText);
+      throw new Error(`News API Error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ News API Response: ${options.method || 'GET'} ${url}`, data);
     return data;
   }
 
@@ -178,6 +216,42 @@ class ApiClient {
       console.error(`❌ エラー詳細:`, error);
       return 0;
     }
+  }
+
+  // ポジション管理API
+  async getPortfolioSummary(): Promise<PortfolioSummary> {
+    return this.request<PortfolioSummary>('/positions/summary');
+  }
+
+  async getSymbolPosition(symbol: string): Promise<Position> {
+    return this.request<Position>(`/positions/${symbol}`);
+  }
+
+  async getTradeHistory(limit?: number, symbol?: string): Promise<TradeHistoryItem[]> {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (symbol) params.append('symbol', symbol);
+    
+    return this.request<TradeHistoryItem[]>(`/positions/trades?${params}`);
+  }
+
+  // ニュースAPI
+  async getNewsSummaries(page: number = 0, size: number = 10): Promise<NewsSummaryResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+    
+    return this.newsRequest<NewsSummaryResponse>(`/news/summaries?${params}`);
+  }
+
+  async getNewsTranslations(page: number = 0, size: number = 10): Promise<NewsTranslationResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString()
+    });
+    
+    return this.newsRequest<NewsTranslationResponse>(`/news/translations?${params}`);
   }
 }
 

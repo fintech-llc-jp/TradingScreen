@@ -9,22 +9,24 @@ import ExecutionHistory from './ExecutionHistory';
 import ApiStatusChecker from './ApiStatusChecker';
 import ReLoginButton from './ReLoginButton';
 import MultiMarketBoard from './MultiMarketBoard';
+import PositionsScreen from './PositionsScreen';
+import NewsScreen from './NewsScreen';
 
 const SYMBOLS: Symbol[] = ['G_BTCJPY', 'G_FX_BTCJPY', 'B_BTCJPY', 'B_FX_BTCJPY'];
 
 const NewTradingScreen: React.FC = () => {
   const [selectedSymbol, setSelectedSymbol] = useState<Symbol>('G_FX_BTCJPY');
-  const [orderBooks, setOrderBooks] = useState<Record<Symbol, OrderBook | null>>({});
-  const [orderBooksLoading, setOrderBooksLoading] = useState<Record<Symbol, boolean>>({});
-  const [orderBooksInitialLoading, setOrderBooksInitialLoading] = useState<Record<Symbol, boolean>>({});
-  const [orderBooksErrors, setOrderBooksErrors] = useState<Record<Symbol, string | null>>({});
+  const [orderBooks, setOrderBooks] = useState<Record<Symbol, OrderBook | null>>({} as Record<Symbol, OrderBook | null>);
+  const [, ] = useState<Record<Symbol, boolean>>({} as Record<Symbol, boolean>);
+  const [orderBooksInitialLoading, setOrderBooksInitialLoading] = useState<Record<Symbol, boolean>>({} as Record<Symbol, boolean>);
+  const [orderBooksErrors, setOrderBooksErrors] = useState<Record<Symbol, string | null>>({} as Record<Symbol, string | null>);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [allExecutions, setAllExecutions] = useState<Execution[]>([]);
   const [executionsLoading, setExecutionsLoading] = useState(false);
   const [allExecutionsLoading, setAllExecutionsLoading] = useState(false);
   const [useMockData, setUseMockData] = useState(false);
-  const [mockDataSymbols, setMockDataSymbols] = useState<Set<Symbol>>(new Set());
-  const [activeTab, setActiveTab] = useState<'single' | 'multi'>('single');
+  const [, setMockDataSymbols] = useState<Set<Symbol>>(new Set());
+  const [activeTab, setActiveTab] = useState<'single' | 'multi' | 'positions' | 'news'>('single');
   const [logoutLoading, setLogoutLoading] = useState(false);
   
   // 初回ロード判定用のRef
@@ -112,8 +114,19 @@ const NewTradingScreen: React.FC = () => {
 
   const fetchAllOrderBooks = useCallback(async () => {
     // 並列実行に戻す（レートリミット対策は間隔調整で対応）
+    console.log('📊 fetchAllOrderBooks開始:', new Date().toLocaleTimeString());
     const promises = SYMBOLS.map(symbol => fetchOrderBook(symbol));
-    await Promise.allSettled(promises);
+    const results = await Promise.allSettled(promises);
+    
+    // 結果をログ出力
+    results.forEach((result, index) => {
+      const symbol = SYMBOLS[index];
+      if (result.status === 'rejected') {
+        console.error(`❌ ${symbol} OrderBook取得失敗:`, result.reason);
+      } else {
+        console.log(`✅ ${symbol} OrderBook取得成功`);
+      }
+    });
   }, [fetchOrderBook]);
 
   const fetchExecutions = useCallback(async () => {
@@ -369,9 +382,21 @@ const NewTradingScreen: React.FC = () => {
         >
           マーケット一覧
         </button>
+        <button 
+          className={`tab-button ${activeTab === 'positions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('positions')}
+        >
+          ポジション
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'news' ? 'active' : ''}`}
+          onClick={() => setActiveTab('news')}
+        >
+          ニュース
+        </button>
       </div>
 
-      {activeTab === 'single' ? (
+      {activeTab === 'single' && (
         <>
           <SymbolSelector
             symbols={SYMBOLS}
@@ -424,7 +449,9 @@ const NewTradingScreen: React.FC = () => {
             </div>
           </div>
         </>
-      ) : (
+      )}
+      
+      {activeTab === 'multi' && (
         <MultiMarketBoard 
           symbols={SYMBOLS} 
           onPlaceOrder={handlePlaceOrder}
@@ -433,6 +460,14 @@ const NewTradingScreen: React.FC = () => {
           errors={orderBooksErrors}
           useMockData={useMockData}
         />
+      )}
+      
+      {activeTab === 'positions' && (
+        <PositionsScreen />
+      )}
+      
+      {activeTab === 'news' && (
+        <NewsScreen />
       )}
     </div>
   );

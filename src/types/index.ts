@@ -92,3 +92,68 @@ export interface Trade {
   timestamp: string;
   pnl?: number;
 }
+
+// ポジション管理API用の型定義
+export interface Position {
+  symbol: string;
+  netQty: number;
+  averageBuyPrice: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  totalPnL: number;
+}
+
+export interface PortfolioSummary {
+  username: string;
+  totalRealizedPnL: number;
+  totalUnrealizedPnL: number;
+  totalPnL: number;
+  totalTradeCount: number;
+  totalTradingVolume: number;
+  positions: Position[];
+  symbolTradeCounts: Record<string, number>;
+}
+
+export interface TradeHistoryItem {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  timestamp: string;
+  realizedPnL?: number;
+}
+
+// ニュースAPI用の型定義
+export interface NewsSummary {
+  timestamp: string;
+  summary1_jp: string;
+  summary2_jp: string;
+  summary3_jp: string;
+  impact: number;
+  bitcoin_price?: string;
+}
+
+export interface NewsTranslation {
+  timestamp: string;
+  url: string;
+  title_jp: string;
+  summary_jp: string;
+  impact: number;
+}
+
+export interface NewsSummaryResponse {
+  content: NewsSummary[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+export interface NewsTranslationResponse {
+  content: NewsTranslation[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}

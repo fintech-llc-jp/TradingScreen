@@ -1,7 +1,43 @@
 import React, { useState, useCallback, memo } from 'react';
-import { OrderBook, Symbol, OrderRequest } from '../types';
+import { OrderBook, Symbol, OrderRequest, OrderBookLevel } from '../types';
 import { formatSymbol, formatPrice, formatQuantity } from '../utils/formatters';
 import CompactOrderForm from './CompactOrderForm';
+
+// Helper function to compare OrderBookLevel arrays
+const areOrderBookLevelsEqual = (arr1: OrderBookLevel[], arr2: OrderBookLevel[]): boolean => {
+  if (arr1.length !== arr2.length) return false;
+  
+  for (let i = 0; i < arr1.length; i++) {
+    if (arr1[i].price !== arr2[i].price || arr1[i].quantity !== arr2[i].quantity) {
+      return false;
+    }
+  }
+  return true;
+};
+
+// Custom comparison function for React.memo
+const areCompactMarketDisplayPropsEqual = (
+  prevProps: CompactMarketDisplayProps, 
+  nextProps: CompactMarketDisplayProps
+): boolean => {
+  // Compare primitive props first
+  if (prevProps.symbol !== nextProps.symbol || 
+      prevProps.initialLoading !== nextProps.initialLoading ||
+      prevProps.error !== nextProps.error) {
+    return false;
+  }
+  
+  const prevOrderBook = prevProps.orderBook;
+  const nextOrderBook = nextProps.orderBook;
+  
+  // Handle null cases
+  if (!prevOrderBook && !nextOrderBook) return true;
+  if (!prevOrderBook || !nextOrderBook) return false;
+  
+  // Deep compare orderBook bids and asks arrays
+  return areOrderBookLevelsEqual(prevOrderBook.bids, nextOrderBook.bids) &&
+         areOrderBookLevelsEqual(prevOrderBook.asks, nextOrderBook.asks);
+};
 
 interface MultiMarketBoardProps {
   symbols: Symbol[];
@@ -35,6 +71,7 @@ const CompactMarketDisplay: React.FC<CompactMarketDisplayProps> = memo(({
   initialLoading,
   error,
 }) => {
+
   if (initialLoading) {
     return (
       <>
@@ -112,7 +149,7 @@ const CompactMarketDisplay: React.FC<CompactMarketDisplayProps> = memo(({
       </div>
     </>
   );
-});
+}, areCompactMarketDisplayPropsEqual);
 
 const CompactOrderBook: React.FC<CompactOrderBookProps> = ({
   symbol,
@@ -158,7 +195,7 @@ const MultiMarketBoard: React.FC<MultiMarketBoardProps> = ({
   errors, 
   useMockData 
 }) => {
-  const [orderFormStates, setOrderFormStates] = useState<Record<Symbol, OrderFormState>>({});
+  const [orderFormStates, setOrderFormStates] = useState<Record<Symbol, OrderFormState>>({} as Record<Symbol, OrderFormState>);
 
 
   const getOrderFormState = useCallback((symbol: Symbol): OrderFormState => {
