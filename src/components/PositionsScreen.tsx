@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PortfolioSummary, Position, TradeHistoryItem } from '../types';
 import { apiClient } from '../services/api';
+import { logger } from '../utils/logger';
 
 const PositionsScreen: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
@@ -80,62 +81,82 @@ const PositionsScreen: React.FC = () => {
   };
 
   const fetchPortfolioSummary = useCallback(async () => {
+    logger.info('🏦 fetchPortfolioSummary 開始, useMockData:', useMockData);
     setLoading(true);
     setError(null);
 
     try {
       if (useMockData) {
+        logger.info('📋 モックデータを使用');
         const mockData = generateMockPortfolio();
+        logger.info('✅ モックポートフォリオデータ生成:', mockData);
         setPortfolio(mockData);
       } else {
+        logger.info('🔄 API呼び出し: getPortfolioSummary');
         const data = await apiClient.getPortfolioSummary();
+        logger.info('✅ ポートフォリオデータ取得成功:', data);
         setPortfolio(data);
         setUseMockData(false);
       }
     } catch (err) {
-      console.error('ポートフォリオ取得エラー:', err);
+      logger.error('❌ ポートフォリオ取得エラー:', err);
       setError(err instanceof Error ? err.message : '不明なエラー');
       
       // エラー時はモックデータにフォールバック
-      console.log('モックデータにフォールバック');
+      logger.info('🔄 モックデータにフォールバック');
       const mockData = generateMockPortfolio();
+      logger.info('✅ モックデータ設定:', mockData);
       setPortfolio(mockData);
       setUseMockData(true);
     } finally {
+      logger.info('🏁 fetchPortfolioSummary 完了');
       setLoading(false);
     }
   }, [useMockData]);
 
   const fetchTradeHistory = useCallback(async () => {
+    logger.info('📈 fetchTradeHistory 開始, selectedSymbol:', selectedSymbol, 'useMockData:', useMockData);
     setTradeHistoryLoading(true);
 
     try {
       if (useMockData) {
+        logger.info('📋 取引履歴モックデータを使用');
         const mockData = generateMockTradeHistory();
+        logger.info('✅ モック取引履歴データ生成:', mockData);
         setTradeHistory(mockData);
       } else {
         const symbol = selectedSymbol === 'all' ? undefined : selectedSymbol;
+        logger.info('🔄 API呼び出し: getTradeHistory, symbol:', symbol);
         const data = await apiClient.getTradeHistory(20, symbol);
+        logger.info('✅ 取引履歴データ取得成功:', data);
         setTradeHistory(data);
       }
     } catch (err) {
-      console.error('取引履歴取得エラー:', err);
+      logger.error('❌ 取引履歴取得エラー:', err);
       
       // エラー時はモックデータにフォールバック
+      logger.info('🔄 取引履歴モックデータにフォールバック');
       const mockData = generateMockTradeHistory();
+      logger.info('✅ モック取引履歴データ設定:', mockData);
       setTradeHistory(mockData);
     } finally {
+      logger.info('🏁 fetchTradeHistory 完了');
       setTradeHistoryLoading(false);
     }
   }, [selectedSymbol, useMockData]);
 
-  useEffect(() => {
-    fetchPortfolioSummary();
-  }, [fetchPortfolioSummary]);
+  // Store the latest functions in refs to avoid dependency issues
+  const fetchPortfolioSummaryRef = useRef(fetchPortfolioSummary);
+  fetchPortfolioSummaryRef.current = fetchPortfolioSummary;
+
+  const fetchTradeHistoryRef = useRef(fetchTradeHistory);
+  fetchTradeHistoryRef.current = fetchTradeHistory;
 
   useEffect(() => {
-    fetchTradeHistory();
-  }, [fetchTradeHistory]);
+    logger.info('🚀 PositionsScreen useEffect - 初期データ取得');
+    fetchPortfolioSummaryRef.current();
+    fetchTradeHistoryRef.current();
+  }, []); // Empty dependency array to prevent recreation
 
   const formatCurrency = (amount: number): string => {
     return amount.toLocaleString('ja-JP', {
@@ -156,8 +177,9 @@ const PositionsScreen: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    fetchPortfolioSummary();
-    fetchTradeHistory();
+    logger.info('🔄 手動更新ボタンクリック');
+    fetchPortfolioSummaryRef.current();
+    fetchTradeHistoryRef.current();
   };
 
   if (loading) {
@@ -316,6 +338,7 @@ const PositionsScreen: React.FC = () => {
           padding: 20px;
           max-width: 1200px;
           margin: 0 auto;
+          color: #333;
         }
 
         .positions-header {

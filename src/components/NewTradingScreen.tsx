@@ -11,6 +11,7 @@ import ReLoginButton from './ReLoginButton';
 import MultiMarketBoard from './MultiMarketBoard';
 import PositionsScreen from './PositionsScreen';
 import NewsScreen from './NewsScreen';
+import { logger } from '../utils/logger';
 
 const SYMBOLS: Symbol[] = ['G_BTCJPY', 'G_FX_BTCJPY', 'B_BTCJPY', 'B_FX_BTCJPY'];
 
@@ -45,9 +46,9 @@ const NewTradingScreen: React.FC = () => {
       setLogoutLoading(true);
       try {
         apiClient.logout();
-        console.log('ログアウトが完了しました');
+        logger.info('ログアウトが完了しました');
       } catch (error) {
-        console.error('ログアウトエラー:', error);
+        logger.error('ログアウトエラー:', error);
       } finally {
         setLogoutLoading(false);
       }
@@ -86,7 +87,7 @@ const NewTradingScreen: React.FC = () => {
         return newSet;
       });
     } catch (err) {
-      console.error(`OrderBook fetch error for ${symbol}:`, err);
+      logger.error(`OrderBook fetch error for ${symbol}:`, err);
       const errorMessage = err instanceof Error ? err.message : '不明なエラー';
       
       setOrderBooksErrors(prev => ({ 
@@ -96,14 +97,14 @@ const NewTradingScreen: React.FC = () => {
       
       // 初回ロード失敗時のみモックデータにフォールバック
       if (isInitialLoad) {
-        console.log(`Using mock data fallback for ${symbol} due to initial load failure`);
+        logger.info(`Using mock data fallback for ${symbol} due to initial load failure`);
         const mockData = getMockOrderBook(symbol);
         setOrderBooks(prev => ({ ...prev, [symbol]: mockData }));
         setMockDataSymbols(prev => new Set([...prev, symbol]));
         setUseMockData(true);
         initialLoadedSymbols.current.add(symbol);
       } else {
-        console.log(`Keeping existing data for ${symbol} despite API error`);
+        logger.info(`Keeping existing data for ${symbol} despite API error`);
       }
     } finally {
       if (isInitialLoad) {
@@ -114,7 +115,7 @@ const NewTradingScreen: React.FC = () => {
 
   const fetchAllOrderBooks = useCallback(async () => {
     // 並列実行に戻す（レートリミット対策は間隔調整で対応）
-    console.log('📊 fetchAllOrderBooks開始:', new Date().toLocaleTimeString());
+    logger.info('📊 fetchAllOrderBooks開始:', new Date().toLocaleTimeString());
     const promises = SYMBOLS.map(symbol => fetchOrderBook(symbol));
     const results = await Promise.allSettled(promises);
     
@@ -122,15 +123,15 @@ const NewTradingScreen: React.FC = () => {
     results.forEach((result, index) => {
       const symbol = SYMBOLS[index];
       if (result.status === 'rejected') {
-        console.error(`❌ ${symbol} OrderBook取得失敗:`, result.reason);
+        logger.error(`❌ ${symbol} OrderBook取得失敗:`, result.reason);
       } else {
-        console.log(`✅ ${symbol} OrderBook取得成功`);
+        logger.info(`✅ ${symbol} OrderBook取得成功`);
       }
     });
   }, [fetchOrderBook]);
 
   const fetchExecutions = useCallback(async () => {
-    console.log(`🔄 fetchExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
+    logger.info(`🔄 fetchExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
     setExecutionsLoading(true);
     
     try {
@@ -138,17 +139,17 @@ const NewTradingScreen: React.FC = () => {
       
       if (useMockData) {
         // モックデータを使用
-        console.log(`📋 モックデータ生成中 (${selectedSymbol})`);
+        logger.info(`📋 モックデータ生成中 (${selectedSymbol})`);
         newData = getMockExecutions(selectedSymbol);
-        console.log(`✅ モックデータ生成完了:`, newData);
+        logger.info(`✅ モックデータ生成完了:`, newData);
       } else {
         // 実際のAPIを呼び出し
-        console.log(`📋 API呼び出し開始: /api/executions/history?page=0&size=10&symbol=${selectedSymbol}`);
+        logger.info(`📋 API呼び出し開始: /api/executions/history?page=0&size=10&symbol=${selectedSymbol}`);
         newData = await apiClient.getExecutions(0, 10, selectedSymbol);
-        console.log(`✅ API呼び出し成功 (${newData.length}件):`, newData);
+        logger.info(`✅ API呼び出し成功 (${newData.length}件):`, newData);
       }
       
-      console.log(`💾 約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
+      logger.info(`💾 約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
       setExecutions(newData);
       
       // キャッシュも更新
@@ -158,9 +159,9 @@ const NewTradingScreen: React.FC = () => {
       }));
       
     } catch (err) {
-      console.error(`❌ 約定履歴取得エラー (${selectedSymbol}):`, err);
+      logger.error(`❌ 約定履歴取得エラー (${selectedSymbol}):`, err);
       const mockData = getMockExecutions(selectedSymbol);
-      console.log(`🔄 モックデータにフォールバック:`, mockData);
+      logger.info(`🔄 モックデータにフォールバック:`, mockData);
       setExecutions(mockData);
       
       // エラー時もキャッシュ更新
@@ -169,13 +170,13 @@ const NewTradingScreen: React.FC = () => {
         [selectedSymbol]: mockData
       }));
     } finally {
-      console.log(`🏁 fetchExecutions完了: ${selectedSymbol}`);
+      logger.info(`🏁 fetchExecutions完了: ${selectedSymbol}`);
       setExecutionsLoading(false);
     }
   }, [useMockData, selectedSymbol]);
 
   const fetchAllExecutions = useCallback(async () => {
-    console.log(`🔄 fetchAllExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
+    logger.info(`🔄 fetchAllExecutions開始: ${selectedSymbol}, useMockData: ${useMockData}`);
     setAllExecutionsLoading(true);
     
     try {
@@ -183,17 +184,17 @@ const NewTradingScreen: React.FC = () => {
       
       if (useMockData) {
         // モックデータを使用
-        console.log(`📋 全体約定モックデータ生成中 (${selectedSymbol})`);
+        logger.info(`📋 全体約定モックデータ生成中 (${selectedSymbol})`);
         newData = getMockExecutions(selectedSymbol);
-        console.log(`✅ 全体約定モックデータ生成完了:`, newData);
+        logger.info(`✅ 全体約定モックデータ生成完了:`, newData);
       } else {
         // 実際のAPIを呼び出し
-        console.log(`📋 全体約定API呼び出し開始: /api/executions/all?page=0&size=10&symbol=${selectedSymbol}`);
+        logger.info(`📋 全体約定API呼び出し開始: /api/executions/all?page=0&size=10&symbol=${selectedSymbol}`);
         newData = await apiClient.getAllExecutions(0, 10, selectedSymbol);
-        console.log(`✅ 全体約定API呼び出し成功 (${newData.length}件):`, newData);
+        logger.info(`✅ 全体約定API呼び出し成功 (${newData.length}件):`, newData);
       }
       
-      console.log(`💾 全体約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
+      logger.info(`💾 全体約定履歴を更新: ${selectedSymbol} (${newData.length}件)`);
       setAllExecutions(newData);
       
       // キャッシュも更新
@@ -203,9 +204,9 @@ const NewTradingScreen: React.FC = () => {
       }));
       
     } catch (err) {
-      console.error(`❌ 全体約定履歴取得エラー (${selectedSymbol}):`, err);
+      logger.error(`❌ 全体約定履歴取得エラー (${selectedSymbol}):`, err);
       const mockData = getMockExecutions(selectedSymbol);
-      console.log(`🔄 全体約定モックデータにフォールバック:`, mockData);
+      logger.info(`🔄 全体約定モックデータにフォールバック:`, mockData);
       setAllExecutions(mockData);
       
       // エラー時もキャッシュ更新
@@ -214,35 +215,35 @@ const NewTradingScreen: React.FC = () => {
         [selectedSymbol]: mockData
       }));
     } finally {
-      console.log(`🏁 fetchAllExecutions完了: ${selectedSymbol}`);
+      logger.info(`🏁 fetchAllExecutions完了: ${selectedSymbol}`);
       setAllExecutionsLoading(false);
     }
   }, [useMockData, selectedSymbol]);
 
   const fetch24HourVolume = useCallback(async () => {
-    console.log(`📊 24時間取引量取得開始: ${selectedSymbol}`);
+    logger.info(`📊 24時間取引量取得開始: ${selectedSymbol}`);
     setVolumeLoading(true);
     
     try {
       if (useMockData) {
         // モックデータでは固定値を使用
         const mockVolume = Math.random() * 1000 + 100; // 100-1100 BTCのランダム値
-        console.log(`📋 モック24時間取引量: ${mockVolume.toFixed(4)} BTC`);
+        logger.info(`📋 モック24時間取引量: ${mockVolume.toFixed(4)} BTC`);
         setVolume24h(mockVolume);
       } else {
         // 実際のAPIを呼び出し
-        console.log(`📊 API呼び出し: ${selectedSymbol}の24時間取引量`);
+        logger.info(`📊 API呼び出し: ${selectedSymbol}の24時間取引量`);
         const volume = await apiClient.get24HourVolume(selectedSymbol);
-        console.log(`✅ 24時間取引量取得成功: ${volume.toFixed(4)} BTC`);
+        logger.info(`✅ 24時間取引量取得成功: ${volume.toFixed(4)} BTC`);
         setVolume24h(volume);
       }
     } catch (err) {
-      console.error(`❌ 24時間取引量取得エラー (${selectedSymbol}):`, err);
+      logger.error(`❌ 24時間取引量取得エラー (${selectedSymbol}):`, err);
       // エラー時はモック値を使用
       const fallbackVolume = Math.random() * 500 + 50;
       setVolume24h(fallbackVolume);
     } finally {
-      console.log(`🏁 24時間取引量取得完了: ${selectedSymbol}`);
+      logger.info(`🏁 24時間取引量取得完了: ${selectedSymbol}`);
       setVolumeLoading(false);
     }
   }, [selectedSymbol, useMockData]);
@@ -251,7 +252,7 @@ const NewTradingScreen: React.FC = () => {
     try {
       if (useMockData) {
         // モックデータモードでは注文をシミュレート
-        console.log('モック注文:', order);
+        logger.info('モック注文:', order);
         
         // 新しい約定をモック履歴に追加
         const newExecution: Execution = {
@@ -274,15 +275,15 @@ const NewTradingScreen: React.FC = () => {
         alert(`モック注文が約定されました: ${order.side} ${(order.quantity/1000).toFixed(3)} BTC @ ${order.price.toLocaleString()}`);
       } else {
         await apiClient.placeOrder(order);
-        console.log('💰 注文成功、約定履歴を500ms後に更新します');
+        logger.info('💰 注文成功、約定履歴を500ms後に更新します');
         setTimeout(() => {
-          console.log('🔄 約定履歴を手動更新中...');
+          logger.info('🔄 約定履歴を手動更新中...');
           fetchExecutions();
         }, 500);
         alert('注文が正常に発注されました');
       }
     } catch (error) {
-      console.error('注文APIエラー、モックモードに切り替えます:', error);
+      logger.error('注文APIエラー、モックモードに切り替えます:', error);
       setUseMockData(true);
       
       // モック注文として処理
@@ -317,20 +318,20 @@ const NewTradingScreen: React.FC = () => {
   useEffect(() => {
     const cachedData = executionsCache[selectedSymbol];
     if (cachedData && cachedData.length > 0) {
-      console.log(`💾 キャッシュから約定履歴を表示: ${selectedSymbol}`);
+      logger.info(`💾 キャッシュから約定履歴を表示: ${selectedSymbol}`);
       setExecutions(cachedData);
     }
     
     const allCachedData = allExecutionsCache[selectedSymbol];
     if (allCachedData && allCachedData.length > 0) {
-      console.log(`💾 キャッシュから全体約定履歴を表示: ${selectedSymbol}`);
+      logger.info(`💾 キャッシュから全体約定履歴を表示: ${selectedSymbol}`);
       setAllExecutions(allCachedData);
     }
   }, [selectedSymbol, executionsCache, allExecutionsCache]);
 
   // 約定履歴の定期取得
   useEffect(() => {
-    console.log('🔄 約定履歴の定期取得を開始');
+    logger.info('🔄 約定履歴の定期取得を開始');
     fetchExecutions();
     fetchAllExecutions();
     fetch24HourVolume();
@@ -340,13 +341,13 @@ const NewTradingScreen: React.FC = () => {
       fetch24HourVolume();
     }, 30000); // 30秒に変更（取引量データも含むため）
     return () => {
-      console.log('🛑 約定履歴の定期取得を停止');
+      logger.info('🛑 約定履歴の定期取得を停止');
       clearInterval(interval);
     };
   }, [fetchExecutions, fetchAllExecutions, fetch24HourVolume]);
 
   const handleTabChange = useCallback((tab: 'my' | 'all') => {
-    console.log(`📱 タブ切り替え: ${tab}`);
+    logger.info(`📱 タブ切り替え: ${tab}`);
     if (tab === 'all' && allExecutions.length === 0) {
       fetchAllExecutions();
     }

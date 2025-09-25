@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Execution } from '../types';
 import { formatPrice, formatQuantity } from '../utils/formatters';
+import { logger } from '../utils/logger';
 
 interface ExecutionHistoryProps {
   executions: Execution[];
@@ -73,7 +74,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({
     }
   };
 
-  console.log('📊 ExecutionHistory状態:', { loading, executionsCount: executions.length });
+  logger.info('📊 ExecutionHistory状態:', { loading, executionsCount: executions.length });
 
   return (
     <div className="execution-history">

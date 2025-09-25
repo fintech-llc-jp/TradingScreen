@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/api';
 import { AUTH_CONFIG } from '../config/auth';
+import { logger } from '../utils/logger';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -22,13 +23,30 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
     setError(null);
     
     try {
+      logger.info('🚀 Manual login initiated from LoginForm');
       await apiClient.login({
         username,
         password
       });
+      logger.info('✅ Manual login successful in LoginForm');
       onLoginSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+      logger.error('❌ Manual login failed in LoginForm:', err);
+      
+      let errorMessage = 'ログインに失敗しました';
+      if (err instanceof Error) {
+        if (err.message.includes('403')) {
+          errorMessage = 'アクセスが拒否されました。サーバー設定またはCORSの問題の可能性があります。';
+        } else if (err.message.includes('401')) {
+          errorMessage = 'ユーザー名またはパスワードが正しくありません。';
+        } else if (err.message.includes('Network')) {
+          errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -39,13 +57,30 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onShowSignUp }) =
     setError(null);
     
     try {
+      logger.info('🤖 Auto login initiated from LoginForm');
       await apiClient.login({
         username: AUTH_CONFIG.username,
         password: AUTH_CONFIG.password
       });
+      logger.info('✅ Auto login successful in LoginForm');
       onLoginSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+      logger.error('❌ Auto login failed in LoginForm:', err);
+      
+      let errorMessage = 'ログインに失敗しました';
+      if (err instanceof Error) {
+        if (err.message.includes('403')) {
+          errorMessage = 'アクセスが拒否されました。サーバー設定またはCORSの問題の可能性があります。';
+        } else if (err.message.includes('401')) {
+          errorMessage = 'デモアカウントの認証に失敗しました。';
+        } else if (err.message.includes('Network')) {
+          errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

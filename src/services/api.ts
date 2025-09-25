@@ -1,11 +1,12 @@
 import { OrderBook, AuthResponse, LoginRequest, OrderRequest, OrderResponse, Execution, ExecutionHistoryResponse, VolumeCalculationResponse, PortfolioSummary, Position, TradeHistoryItem, NewsSummaryResponse, NewsTranslationResponse } from '../types';
+import { logger } from '../utils/logger';
 
 const API_BASE_URL = import.meta.env.PROD
-  ? 'https://exch-sim-service-953974838707.asia-northeast1.run.app/api'
+  ? 'https://exch-sim-953974838707.asia-northeast1.run.app/api'
   : '/api';
 
 const NEWS_API_BASE_URL = import.meta.env.PROD
-  ? (import.meta.env.VITE_NEWS_API_URL || 'https://news-server-120035357891.asia-northeast1.run.app/api')
+  ? (import.meta.env.VITE_NEWS_API_URL || 'https://news-server-953974838707.asia-northeast1.run.app/api')
   : '/api';
 
 class ApiClient {
@@ -43,10 +44,16 @@ class ApiClient {
       headers.Authorization = `Bearer ${this.getToken()}`;
     }
 
-    console.log(`🔄 API Request: ${options.method || 'GET'} ${url}`);
-    console.log('Headers:', headers);
+    logger.info(`🔄 API Request: ${options.method || 'GET'} ${url}`);
+    logger.info('📋 Environment Info:', {
+      isProd: import.meta.env.PROD,
+      baseUrl,
+      endpoint,
+      fullUrl: url
+    });
+    logger.info('📨 Request Headers:', headers);
     if (options.body) {
-      console.log('Request Body:', options.body);
+      logger.info('📤 Request Body:', options.body);
     }
 
     const response = await fetch(url, {
@@ -54,26 +61,45 @@ class ApiClient {
       headers,
     });
 
-    console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+    logger.info(`📡 Response Status: ${response.status} ${response.statusText}`);
+    logger.info('📥 Response Headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ API Error Response: ${response.status} ${response.statusText}`);
-      console.error('Error Details:', errorText);
+      logger.error(`❌ API Error Response: ${response.status} ${response.statusText}`);
+      logger.error('🔍 Error Details:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: url,
+        errorBody: errorText,
+        timestamp: new Date().toISOString()
+      });
       
       // 401エラー（Unauthorized）の場合はトークン期限切れの可能性
       if (response.status === 401) {
-        console.warn('🔐 トークンが無効または期限切れです。再ログインが必要です。');
+        logger.warn('🔐 トークンが無効または期限切れです。再ログインが必要です。');
         this.clearToken();
         // カスタムイベントを発火して再ログインを促す
         window.dispatchEvent(new CustomEvent('token-expired'));
+      }
+      
+      // 403エラー（Forbidden）の場合は詳細なデバッグ情報を出力
+      if (response.status === 403) {
+        logger.error('🚫 403 Forbidden Error - 詳細デバッグ情報:');
+        logger.error('🔗 Request URL:', url);
+        logger.error('🌐 Base URL:', baseUrl);
+        logger.error('📍 Endpoint:', endpoint);
+        logger.error('🛠️ Environment:', import.meta.env.PROD ? 'Production' : 'Development');
+        logger.error('🎯 User Agent:', navigator.userAgent);
+        logger.error('🌍 Origin:', window.location.origin);
+        logger.error('📍 Current Path:', window.location.pathname);
       }
       
       throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`✅ API Response: ${options.method || 'GET'} ${url}`, data);
+    logger.info(`✅ API Response: ${options.method || 'GET'} ${url}`, data);
     return data;
   }
 
@@ -82,41 +108,67 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${NEWS_API_BASE_URL}${endpoint}`;
+    
+    // Simple Request条件を満たすヘッダーのみを使用（プリフライトを回避）
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      // Content-Typeを削除してプリフライトを回避
       ...((options.headers as Record<string, string>) || {}),
     };
 
     // ニュースAPIには認証ヘッダーを追加しない
-    console.log(`🔄 News API Request: ${options.method || 'GET'} ${url}`);
-    console.log('Headers:', headers);
+    logger.info(`🔄 News API Request: ${options.method || 'GET'} ${url}`);
+    logger.info('Headers:', headers);
 
     const response = await fetch(url, {
       ...options,
       headers,
     });
 
-    console.log(`📡 News API Response Status: ${response.status} ${response.statusText}`);
+    logger.info(`📡 News API Response Status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ News API Error Response: ${response.status} ${response.statusText}`);
-      console.error('Error Details:', errorText);
+      logger.error(`❌ News API Error Response: ${response.status} ${response.statusText}`);
+      logger.error('Error Details:', errorText);
       throw new Error(`News API Error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`✅ News API Response: ${options.method || 'GET'} ${url}`, data);
+    logger.info(`✅ News API Response: ${options.method || 'GET'} ${url}`, data);
     return data;
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
+    logger.info('🔐 Login attempt starting...');
+    logger.info('👤 Login credentials (username only):', { username: credentials.username });
+    logger.info('🔍 Pre-login environment check:', {
+      currentToken: this.getToken(),
+      apiBaseUrl: API_BASE_URL,
+      isProd: import.meta.env.PROD
     });
-    this.setToken(response.token);
-    return response;
+    
+    try {
+      const response = await this.request<AuthResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+      
+      logger.info('✅ Login successful, received token');
+      logger.info('🔑 Token preview:', response.token ? response.token.substring(0, 20) + '...' : 'No token received');
+      
+      this.setToken(response.token);
+      
+      logger.info('💾 Token stored successfully');
+      return response;
+    } catch (error) {
+      logger.error('❌ Login failed:', error);
+      logger.error('🔍 Login error details:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        credentials: { username: credentials.username },
+        timestamp: new Date().toISOString()
+      });
+      throw error;
+    }
   }
 
   async signUp(credentials: LoginRequest): Promise<AuthResponse> {
@@ -196,24 +248,24 @@ class ApiClient {
     const toTime = now.toISOString().substring(0, 19);
     const fromTime = yesterday.toISOString().substring(0, 19);
     
-    console.log(`📊 Volume API call: ${symbol} from ${fromTime} to ${toTime} (UTC)`);
-    console.log(`📊 Current time: ${now.toISOString()}, Yesterday: ${yesterday.toISOString()}`);
+    logger.info(`📊 Volume API call: ${symbol} from ${fromTime} to ${toTime} (UTC)`);
+    logger.info(`📊 Current time: ${now.toISOString()}, Yesterday: ${yesterday.toISOString()}`);
     
     try {
       const response = await this.getVolumeCalculation(symbol, fromTime, toTime);
-      console.log(`📊 Volume API response for ${symbol}:`, response);
-      console.log(`📊 Total volume: ${response.totalVolume}, Execution count: ${response.executionCount}`);
+      logger.info(`📊 Volume API response for ${symbol}:`, response);
+      logger.info(`📊 Total volume: ${response.totalVolume}, Execution count: ${response.executionCount}`);
       
       // 警告: 取引量が0の場合
       if (response.totalVolume === 0) {
-        console.warn(`⚠️ 取引量が0です - ${symbol}: 期間内に約定がない可能性があります`);
-        console.warn(`⚠️ 確認してください: 約定データの時刻が ${fromTime} から ${toTime} の範囲内にあるか?`);
+        logger.warn(`⚠️ 取引量が0です - ${symbol}: 期間内に約定がない可能性があります`);
+        logger.warn(`⚠️ 確認してください: 約定データの時刻が ${fromTime} から ${toTime} の範囲内にあるか?`);
       }
       
       return response.totalVolume;
     } catch (error) {
-      console.error(`❌ 24時間取引量取得エラー (${symbol}):`, error);
-      console.error(`❌ エラー詳細:`, error);
+      logger.error(`❌ 24時間取引量取得エラー (${symbol}):`, error);
+      logger.error(`❌ エラー詳細:`, error);
       return 0;
     }
   }
@@ -232,7 +284,9 @@ class ApiClient {
     if (limit) params.append('limit', limit.toString());
     if (symbol) params.append('symbol', symbol);
     
-    return this.request<TradeHistoryItem[]>(`/positions/trades?${params}`);
+    const response = await this.request<{username: string, totalCount: number, trades: TradeHistoryItem[]}>(`/positions/trades?${params}`);
+    logger.info('🔍 Trade History API Response:', response);
+    return response.trades || [];
   }
 
   // ニュースAPI

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient } from '../services/api';
+import { logger } from '../utils/logger';
 
 const ApiStatusChecker: React.FC = () => {
   const [checking, setChecking] = useState(false);
@@ -10,33 +11,33 @@ const ApiStatusChecker: React.FC = () => {
     const timestamp = new Date().toLocaleTimeString();
     
     try {
-      console.log('🔍 API状態確認を開始...');
+      logger.info('🔍 API状態確認を開始...');
       
       // 1. 保存されているトークンを確認
       const token = apiClient.getToken();
-      console.log('🔑 保存されているトークン:', token);
-      console.log('🔑 トークンの長さ:', token?.length);
+      logger.info('🔑 保存されているトークン:', token);
+      logger.info('🔑 トークンの長さ:', token?.length);
       
       // 2. 手動でfetchテスト（プロキシ経由）
-      console.log('📡 プロキシ経由でのfetchテスト...');
+      logger.info('📡 プロキシ経由でのfetchテスト...');
       const proxyResponse = await fetch('/api/market/board/G_FX_BTCJPY?depth=5', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      console.log('プロキシ経由ステータス:', proxyResponse.status, proxyResponse.statusText);
+      logger.info('プロキシ経由ステータス:', proxyResponse.status, proxyResponse.statusText);
       
       if (!proxyResponse.ok) {
         const errorText = await proxyResponse.text();
-        console.error('プロキシ経由エラー:', errorText);
+        logger.error('プロキシ経由エラー:', errorText);
       } else {
         const data = await proxyResponse.json();
-        console.log('プロキシ経由成功:', data);
+        logger.info('プロキシ経由成功:', data);
       }
       
       // 3. 直接アクセステスト（CORS回避のため）
-      console.log('🌐 直接アクセステスト...');
+      logger.info('🌐 直接アクセステスト...');
       try {
         const directResponse = await fetch('http://localhost:8080/api/market/board/G_FX_BTCJPY?depth=5', {
           headers: {
@@ -45,26 +46,26 @@ const ApiStatusChecker: React.FC = () => {
           },
           mode: 'cors'
         });
-        console.log('直接アクセスステータス:', directResponse.status, directResponse.statusText);
+        logger.info('直接アクセスステータス:', directResponse.status, directResponse.statusText);
       } catch (corsError) {
-        console.log('CORS制限により直接アクセス不可（正常）:', corsError);
+        logger.info('CORS制限により直接アクセス不可（正常）:', corsError);
       }
       
       // 4. APIクライアント経由テスト
-      console.log('📊 APIクライアント経由テスト...');
+      logger.info('📊 APIクライアント経由テスト...');
       await apiClient.getOrderBook('G_FX_BTCJPY', 5);
-      console.log('✅ APIクライアント: 成功');
+      logger.info('✅ APIクライアント: 成功');
       
       setLastCheck(`${timestamp} - API正常`);
       alert('API接続テスト成功！');
       
     } catch (error) {
-      console.error('❌ API状態確認エラー:', error);
+      logger.error('❌ API状態確認エラー:', error);
       setLastCheck(`${timestamp} - API異常`);
       
       if (error instanceof Error) {
-        console.error('エラー詳細:', error.message);
-        console.error('エラースタック:', error.stack);
+        logger.error('エラー詳細:', error.message);
+        logger.error('エラースタック:', error.stack);
       }
     } finally {
       setChecking(false);

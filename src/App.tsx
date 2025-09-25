@@ -3,6 +3,7 @@ import NewTradingScreen from './components/NewTradingScreen';
 import SignUpForm from './components/SignUpForm';
 import LoginForm from './components/LoginForm';
 import { apiClient } from './services/api';
+import { logger } from './utils/logger';
 import './App.css';
 import './NewApp.css';
 
@@ -20,14 +21,14 @@ function App() {
     
     // トークン期限切れイベントリスナーを追加
     const handleTokenExpired = () => {
-      console.warn('🔐 トークンが期限切れになりました。再ログインしてください。');
+      logger.warn('🔐 トークンが期限切れになりました。再ログインしてください。');
       setIsAuthenticated(false);
       alert('セッションが期限切れになりました。再ログインしてください。');
     };
 
     // ユーザーログアウトイベントリスナーを追加
     const handleUserLogout = () => {
-      console.log('👋 ユーザーがログアウトしました');
+      logger.info('👋 ユーザーがログアウトしました');
       setIsAuthenticated(false);
       setShowSignUp(false); // ログイン画面に戻る
     };

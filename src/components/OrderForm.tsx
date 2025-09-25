@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Symbol, OrderRequest } from '../types';
+import { logger } from '../utils/logger';
 
 interface OrderFormProps {
   symbol: Symbol;
@@ -49,8 +50,8 @@ const OrderForm: React.FC<OrderFormProps> = ({
         tif,
       };
       
-      console.log('📝 注文データ:', orderData);
-      console.log(`💡 入力: ${numQuantity} BTC → API送信: ${orderData.quantity} BTC`);
+      logger.info('📝 注文データ:', orderData);
+      logger.info(`💡 入力: ${numQuantity} BTC → API送信: ${orderData.quantity} BTC`);
       
       await onPlaceOrder(orderData);
       
@@ -59,7 +60,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       }
       setQuantity('');
     } catch (error) {
-      console.error('注文エラー:', error);
+      logger.error('注文エラー:', error);
     } finally {
       setLoading(false);
     }
